@@ -1,0 +1,84 @@
+```yaml
+groups:
+  - name: vision-moderation-alerts
+    rules:
+
+      - alert: AvailabilityBurnFast
+        expr: |
+          (
+            (
+              sum(rate(http_requests_total{job="vision-moderation",code=~"5.."}[1h]))
+              /
+              sum(rate(http_requests_total{job="vision-moderation"}[1h]))
+            )
+            /
+            (1 - 0.995)
+          ) > 14.4
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "Fast burn rate consuming error budget"
+          runbook: "https://runbooks.example.com/vision-moderation/availability-burn"
+
+      - alert: AvailabilityBurnSlow
+        expr: |
+          (
+            (
+              sum(rate(http_requests_total{job="vision-moderation",code=~"5.."}[24h]))
+              /
+              sum(rate(http_requests_total{job="vision-moderation"}[24h]))
+            )
+            /
+            (1 - 0.995)
+          ) > 1
+        for: 30m
+        labels:
+          severity: ticket
+        annotations:
+          summary: "Slow burn rate consuming long-term error budget"
+          runbook: "https://runbooks.example.com/vision-moderation/availability-burn"
+
+      - alert: LatencyP99High
+        expr: |
+          histogram_quantile(
+            0.99,
+            sum by (le) (
+              rate(http_request_duration_seconds_bucket{
+                job="vision-moderation"
+              }[5m])
+            )
+          ) > 1
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "P99 latency above 1 second"
+          runbook: "https://runbooks.example.com/vision-moderation/latency"
+
+      - alert: DriftDetected
+        expr: |
+          max(feature_psi_score{
+            job="vision-moderation"
+          }) > 0.2
+        for: 1h
+        labels:
+          severity: ticket
+        annotations:
+          summary: "Feature drift detected"
+          runbook: "https://runbooks.example.com/vision-moderation/drift"
+
+      - alert: ModelVersionMismatch
+        expr: |
+          count(
+            model_version_info{
+              expected_version!="served_version"
+            }
+          ) > 0
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "Replica serving unexpected model version"
+          runbook: "https://runbooks.example.com/vision-moderation/model-version"
+```
